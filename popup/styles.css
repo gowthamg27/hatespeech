@@ -43,3 +43,167 @@ input {
 #setupSection, #controlSection {
     margin-top: 20px;
 }
+
+/* / // content.js
+// const blockedWords = [
+//     "hate", "abuse", "stupid", "idiot", "dumb"
+//     // Add more words as needed
+// ];
+
+// function replaceBlockedWords(text) {
+//     if (!text || typeof text !== 'string') return text;
+    
+//     let modifiedText = text;
+    
+//     // Replace words with asterisks
+//     blockedWords.forEach(word => {
+//         const regex = new RegExp(word, 'gi');
+//         modifiedText = modifiedText.replace(regex, match => '*'.repeat(match.length));
+//     });
+    
+//     return modifiedText;
+// }
+
+// function processNode(node) {
+//     if (node.nodeType === Node.TEXT_NODE) {
+//         const originalText = node.nodeValue;
+//         const newText = replaceBlockedWords(originalText);
+//         if (originalText !== newText) {
+//             node.nodeValue = newText;
+//         }
+//     } else if (node.nodeType === Node.ELEMENT_NODE) {
+//         // Skip script and style tags
+//         if (node.tagName === 'SCRIPT' || node.tagName === 'STYLE') {
+//             return;
+//         }
+        
+//         // Process input fields and textareas
+//         if (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA') {
+//             if (node.value) {
+//                 node.value = replaceBlockedWords(node.value);
+//             }
+//             return;
+//         }
+        
+//         // Process contenteditable elements
+//         if (node.isContentEditable) {
+//             node.textContent = replaceBlockedWords(node.textContent);
+//             return;
+//         }
+        
+//         // Process child nodes
+//         Array.from(node.childNodes).forEach(child => processNode(child));
+//     }
+// }
+
+// // Process the entire document
+// function processDocument() {
+//     processNode(document.body);
+// }
+
+// // Monitor input fields and textareas
+// function monitorInputs() {
+//     document.addEventListener('input', function(e) {
+//         const target = e.target;
+//         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+//             const cursorPos = target.selectionStart;
+//             target.value = replaceBlockedWords(target.value);
+//             target.setSelectionRange(cursorPos, cursorPos);
+//         }
+//     }, true);
+// }
+
+// // Monitor contenteditable elements
+// function monitorContentEditable() {
+//     document.addEventListener('input', function(e) {
+//         const target = e.target;
+//         if (target.isContentEditable) {
+//             const selection = window.getSelection();
+//             const range = selection.getRangeAt(0);
+//             const cursorOffset = range.startOffset;
+            
+//             target.textContent = replaceBlockedWords(target.textContent);
+            
+//             // Restore cursor position
+//             try {
+//                 range.setStart(target.firstChild, cursorOffset);
+//                 range.setEnd(target.firstChild, cursorOffset);
+//                 selection.removeAllRanges();
+//                 selection.addRange(range);
+//             } catch(e) {}
+//         }
+//     }, true);
+// }
+
+// // Monitor DOM changes
+// const observer = new MutationObserver(function(mutations) {
+//     mutations.forEach(function(mutation) {
+//         // Process new nodes
+//         mutation.addedNodes.forEach(node => processNode(node));
+        
+//         // Process changed nodes
+//         if (mutation.type === 'characterData') {
+//             processNode(mutation.target);
+//         }
+//     });
+// });
+
+// // Initialize everything when the extension is enabled
+// function initialize() {
+//     // Initial processing
+//     processDocument();
+    
+//     // Set up monitors
+//     monitorInputs();
+//     monitorContentEditable();
+    
+//     // Start observing document changes
+//     observer.observe(document.body, {
+//         childList: true,
+//         subtree: true,
+//         characterData: true,
+//         characterDataOldValue: true
+//     });
+    
+//     // Handle iframes
+//     document.querySelectorAll('iframe').forEach(iframe => {
+//         try {
+//             iframe.addEventListener('load', () => {
+//                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+//                 processNode(iframeDoc.body);
+//             });
+//         } catch(e) {}
+//     });
+// }
+
+// // Start the extension
+// chrome.storage.local.get("isBlocked", function(data) {
+//     if (data.isBlocked) {
+//         if (document.readyState === 'loading') {
+//             document.addEventListener('DOMContentLoaded', initialize);
+//         } else {
+//             initialize();
+//         }
+//     }
+// });
+
+// // Handle dynamic iframe creation
+// const iframeObserver = new MutationObserver(function(mutations) {
+//     mutations.forEach(function(mutation) {
+//         mutation.addedNodes.forEach(function(node) {
+//             if (node.tagName === 'IFRAME') {
+//                 try {
+//                     node.addEventListener('load', () => {
+//                         const iframeDoc = node.contentDocument || node.contentWindow.document;
+//                         processNode(iframeDoc.body);
+//                     });
+//                 } catch(e) {}
+//             }
+//         });
+//     });
+// });
+
+// iframeObserver.observe(document.body, {
+//     childList: true,
+//     subtree: true
+// }); */
