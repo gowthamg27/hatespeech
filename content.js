@@ -1,289 +1,209 @@
+
 // content.js
 const blockedWords = [
     "hate", "abuse", "stupid", "idiot", "dumb"
     // Add more words as needed
 ];
 
+// Function to replace blocked words with asterisks
 function replaceBlockedWords(text) {
-    if (!text || typeof text !== 'string') return text;
-    
-    // First, check for exact matches
-    let modifiedText = text.split(' ').map(word => {
-        if (blockedWords.includes(word.toLowerCase())) {
-            return '*'.repeat(word.length);
-        }
-        return word;
-    }).join(' ');
-    
-    // Then check for partial matches within words
+    if (!text) return text;
+    let modifiedText = text;
     blockedWords.forEach(word => {
         const regex = new RegExp(word, 'gi');
-        modifiedText = modifiedText.replace(regex, match => '*'.repeat(match.length));
+        modifiedText = modifiedText.replace(regex, '*'.repeat(word.length));
     });
-    
     return modifiedText;
 }
 
-// Process all text nodes in the document
-function processTextNode(node) {
+// Monitor and replace text in existing content
+function replaceTextContent(node) {
     if (node.nodeType === 3) { // Text node
-        const originalText = node.nodeValue;
-        const newText = replaceBlockedWords(originalText);
-        if (originalText !== newText) {
-            node.nodeValue = newText;
+        let text = node.nodeValue;
+        let modifiedText = replaceBlockedWords(text);
+        if (text !== modifiedText) {
+            node.nodeValue = modifiedText;
         }
+    } else {
+        Array.from(node.childNodes).forEach(replaceTextContent);
     }
 }
 
-// Scan and replace text in the entire document
-function scanAndReplaceAllText() {
-    const walker = document.createTreeWalker(
-        document.body,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-    );
-
-    let node;
-    while (node = walker.nextNode()) {
-        processTextNode(node);
-    }
+// Handle form submissions
+function handleFormSubmission(form) {
+    // Process all input fields, textareas, and contenteditable elements in the form
+    form.querySelectorAll('input[type="text"], input[type="search"], textarea, [contenteditable="true"]').forEach(element => {
+        if (element.isContentEditable) {
+            element.textContent = replaceBlockedWords(element.textContent);
+        } else {
+            element.value = replaceBlockedWords(element.value);
+        }
+    });
 }
 
-// Monitor input fields for real-time replacement
-function monitorInputFields() {
-    // For regular input fields and textareas
+// Monitor input fields and textareas
+function monitorInputs() {
+    // Monitor all forms for submission
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            handleFormSubmission(this);
+        });
+    });
+
+    // Monitor all input fields and textareas
     document.querySelectorAll('input[type="text"], input[type="search"], textarea').forEach(input => {
+        let lastCursorPosition = 0;
+        let lastLength = 0;
+
+        // Monitor input events
         input.addEventListener('input', function(e) {
-            const start = this.selectionStart;
-            const end = this.selectionEnd;
-            this.value = replaceBlockedWords(this.value);
-            if (this.setSelectionRange) {
-                this.setSelectionRange(start, end);
+            lastCursorPosition = this.selectionStart;
+            lastLength = this.value.length;
+            
+            const newValue = replaceBlockedWords(this.value);
+            
+            if (newValue !== this.value) {
+                this.value = newValue;
+                const lengthDiff = newValue.length - lastLength;
+                const newPosition = lastCursorPosition + lengthDiff;
+                
+                setTimeout(() => {
+                    this.setSelectionRange(newPosition, newPosition);
+                }, 0);
             }
         });
 
-        // Also check on blur (when losing focus)
+        // Monitor blur event (when input loses focus / message might be sent)
         input.addEventListener('blur', function() {
             this.value = replaceBlockedWords(this.value);
         });
     });
 
-    // For contenteditable elements
+    // Monitor contenteditable elements
     document.querySelectorAll('[contenteditable="true"]').forEach(element => {
-        element.addEventListener('input', function() {
+        element.addEventListener('input', function(e) {
             const selection = window.getSelection();
             const range = selection.getRangeAt(0);
-            const start = range.startOffset;
+            const cursorPosition = range.startOffset;
             
-            this.textContent = replaceBlockedWords(this.textContent);
+            const originalContent = this.textContent;
+            const newContent = replaceBlockedWords(originalContent);
             
-            try {
-                range.setStart(this.firstChild || this, start);
-                range.setEnd(this.firstChild || this, start);
-                selection.removeAllRanges();
-                selection.addRange(range);
-            } catch(e) {}
+            if (originalContent !== newContent) {
+                this.textContent = newContent;
+                
+                try {
+                    const textNode = this.firstChild || this;
+                    const newRange = document.createRange();
+                    newRange.setStart(textNode, cursorPosition);
+                    newRange.setEnd(textNode, cursorPosition);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                } catch (error) {
+                    console.log("Cursor position restoration failed");
+                }
+            }
         });
 
+        // Monitor blur event for contenteditable
         element.addEventListener('blur', function() {
             this.textContent = replaceBlockedWords(this.textContent);
         });
     });
-}
 
-// Intercept all form submissions
-function interceptForms() {
-    document.addEventListener('submit', function(e) {
-        const form = e.target;
-        form.querySelectorAll('input[type="text"], input[type="search"], textarea, [contenteditable="true"]')
-            .forEach(input => {
-                if (input.value) {
-                    input.value = replaceBlockedWords(input.value);
-                } else if (input.textContent) {
-                    input.textContent = replaceBlockedWords(input.textContent);
-                }
-            });
-    }, true);
-}
-
-// Intercept network requests
-function interceptNetwork() {
-    // Intercept Fetch
-    const originalFetch = window.fetch;
-    window.fetch = async function(url, options = {}) {
-        if (options?.body) {
-            try {
-                if (typeof options.body === 'string') {
-                    try {
-                        // Try parsing as JSON
-                        let json = JSON.parse(options.body);
-                        function processObject(obj) {
-                            for (let key in obj) {
-                                if (typeof obj[key] === 'string') {
-                                    obj[key] = replaceBlockedWords(obj[key]);
-                                } else if (obj[key] && typeof obj[key] === 'object') {
-                                    processObject(obj[key]);
-                                }
-                            }
-                        }
-                        processObject(json);
-                        options.body = JSON.stringify(json);
-                    } catch {
-                        // If not JSON, process as plain text
-                        options.body = replaceBlockedWords(options.body);
+    // Monitor click events on send buttons
+    document.querySelectorAll('button[type="submit"], input[type="submit"], button:contains("Send"), button:contains("Post"), button:contains("Comment")').forEach(button => {
+        button.addEventListener('click', function(e) {
+            const form = this.closest('form');
+            if (form) {
+                handleFormSubmission(form);
+            }
+            
+            // Also check nearby input fields
+            const container = this.closest('div, form, section');
+            if (container) {
+                container.querySelectorAll('input[type="text"], textarea, [contenteditable="true"]').forEach(input => {
+                    if (input.isContentEditable) {
+                        input.textContent = replaceBlockedWords(input.textContent);
+                    } else {
+                        input.value = replaceBlockedWords(input.value);
                     }
-                } else if (options.body instanceof FormData) {
-                    const newFormData = new FormData();
-                    for (let pair of options.body.entries()) {
-                        if (typeof pair[1] === 'string') {
-                            newFormData.append(pair[0], replaceBlockedWords(pair[1]));
-                        } else {
-                            newFormData.append(pair[0], pair[1]);
-                        }
-                    }
-                    options.body = newFormData;
-                }
-            } catch (e) {}
-        }
-        return originalFetch.call(this, url, options);
-    };
-
-    // Intercept XHR
-    const originalXHRSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function(data) {
-        if (data) {
-            try {
-                if (typeof data === 'string') {
-                    try {
-                        let json = JSON.parse(data);
-                        function processObject(obj) {
-                            for (let key in obj) {
-                                if (typeof obj[key] === 'string') {
-                                    obj[key] = replaceBlockedWords(obj[key]);
-                                } else if (obj[key] && typeof obj[key] === 'object') {
-                                    processObject(obj[key]);
-                                }
-                            }
-                        }
-                        processObject(json);
-                        data = JSON.stringify(json);
-                    } catch {
-                        data = replaceBlockedWords(data);
-                    }
-                } else if (data instanceof FormData) {
-                    const newFormData = new FormData();
-                    for (let pair of data.entries()) {
-                        if (typeof pair[1] === 'string') {
-                            newFormData.append(pair[0], replaceBlockedWords(pair[1]));
-                        } else {
-                            newFormData.append(pair[0], pair[1]);
-                        }
-                    }
-                    data = newFormData;
-                }
-            } catch (e) {}
-        }
-        originalXHRSend.call(this, data);
-    };
-}
-
-// Monitor DOM changes
-const observer = new MutationObserver((mutations) => {
-    mutations.forEach(mutation => {
-        // Check added nodes
-        mutation.addedNodes.forEach(node => {
-            if (node.nodeType === 1) { // Element node
-                // Process all text nodes within this element
-                const walker = document.createTreeWalker(
-                    node,
-                    NodeFilter.SHOW_TEXT,
-                    null,
-                    false
-                );
-                
-                let textNode;
-                while (textNode = walker.nextNode()) {
-                    processTextNode(textNode);
-                }
-
-                // Monitor any new input fields
-                if (node.querySelectorAll) {
-                    node.querySelectorAll('input[type="text"], input[type="search"], textarea, [contenteditable="true"]')
-                        .forEach(input => {
-                            if (input.value) {
-                                input.value = replaceBlockedWords(input.value);
-                            }
-                            input.addEventListener('input', function() {
-                                const start = this.selectionStart;
-                                const end = this.selectionEnd;
-                                this.value = replaceBlockedWords(this.value);
-                                if (this.setSelectionRange) {
-                                    this.setSelectionRange(start, end);
-                                }
-                            });
-                        });
-                }
-            } else if (node.nodeType === 3) { // Text node
-                processTextNode(node);
+                });
             }
         });
+    });
+}
 
-        // Check modified nodes
-        if (mutation.type === 'characterData') {
-            processTextNode(mutation.target);
-        }
+// Create observer for dynamic content
+const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach(node => {
+            replaceTextContent(node);
+            
+            if (node.querySelectorAll) {
+                node.querySelectorAll('input[type="text"], input[type="search"], textarea, [contenteditable="true"], form').forEach(input => {
+                    monitorInputs();
+                });
+            }
+        });
     });
 });
 
-// Initialize everything
-function initialize() {
-    // Initial scan
-    scanAndReplaceAllText();
-    
-    // Set up all monitors
-    monitorInputFields();
-    interceptForms();
-    interceptNetwork();
-    
-    // Monitor DOM changes
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        characterData: true
-    });
+// Intercept XHR and Fetch requests
+function interceptNetworkRequests() {
+    // Intercept XHR
+    const XHR = XMLHttpRequest.prototype;
+    const originalSend = XHR.send;
+    XHR.send = function(data) {
+        if (typeof data === 'string') {
+            data = replaceBlockedWords(data);
+        }
+        return originalSend.call(this, data);
+    };
 
-    // Handle frames
-    document.querySelectorAll('iframe').forEach(iframe => {
-        try {
-            iframe.addEventListener('load', () => {
-                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                scanAndReplaceAllText.call(iframeDoc);
-                monitorInputFields.call(iframeDoc);
-            });
-        } catch (e) {}
-    });
+    // Intercept Fetch
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+        if (options && options.body && typeof options.body === 'string') {
+            options.body = replaceBlockedWords(options.body);
+        }
+        return originalFetch.call(this, url, options);
+    };
 }
 
-// Start when extension is enabled
+// Start monitoring when blocking is enabled
 chrome.storage.local.get("isBlocked", function(data) {
     if (data.isBlocked) {
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initialize);
-        } else {
-            initialize();
-        }
+        // Replace existing content
+        replaceTextContent(document.body);
         
-        // Also process new content as it loads
-        document.addEventListener('load', function(event) {
-            const target = event.target;
-            if (target.tagName === 'IFRAME') {
-                try {
-                    const doc = target.contentDocument || target.contentWindow.document;
-                    scanAndReplaceAllText.call(doc);
-                    monitorInputFields.call(doc);
-                } catch (e) {}
+        // Monitor new content
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+        
+        // Start monitoring inputs
+        monitorInputs();
+        
+        // Intercept network requests
+        interceptNetworkRequests();
+        
+        // Monitor iframes
+        document.querySelectorAll('iframe').forEach(iframe => {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                replaceTextContent(iframeDoc.body);
+                observer.observe(iframeDoc.body, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true
+                });
+                monitorInputs();
+            } catch (e) {
+                // Handle cross-origin iframe errors silently
             }
-        }, true);
+        });
     }
 });
