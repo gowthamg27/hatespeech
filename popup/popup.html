@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Content Blocker</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Content Blocker</h2>
+        <div id="setupSection">
+            <h3>Set Your Password</h3>
+            <input type="password" id="newPassword" placeholder="Enter new password">
+            <input type="password" id="confirmPassword" placeholder="Confirm password">
+            <button id="savePassword">Save Password</button>
+        </div>
+        <div id="controlSection" style="display: none;">
+            <button id="toggle">Turn On</button>
+            <div id="passwordSection" style="display: none;">
+                <input type="password" id="password" placeholder="Enter Password">
+                <button id="submitPassword">Submit</button>
+            </div>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>
